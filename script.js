@@ -40,14 +40,8 @@ angular.module('kick', ["firebase", "ngAnimate"])
             
         var margin = 0.1;
             
-        // function initTrueSkillFromDb(){
-        //     var myDataRef = new Firebase('https://resplendent-heat-7645.firebaseio.com/tournaments/' + 'tall' + "/games");
-        //     
-        //     var allgames = $firebaseArray(myDataRef);
-        // }
-        // 
         $scope.tournamentChange = function () {
-			var firebaseUrl = 'TODO insert here' ;
+			var firebaseUrl = 'todo: enter url here' ;
             var myDataRef = new Firebase(firebaseUrl+'tournaments/' + $scope.selectedTournament.Id + "/games");
             var myDataRefPlayers = new Firebase(firebaseUrl+'tournaments/' + $scope.selectedTournament.Id + "/players");
             var prevUsedPlayerRef = new Firebase(firebaseUrl+'tournaments/' + $scope.selectedTournament.Id + "/usedplayers");
