@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html ng-app="kick">
+
+<head>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.3/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.3/angular-animate.min.js"></script>
+    <script src="trueskill.js"></script>
+    <script src="script.js"></script>
+    <script src='https://cdn.firebase.com/js/client/2.2.1/firebase.js'></script>
+    <script src="https://cdn.firebase.com/libs/angularfire/1.2.0/angularfire.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7"
+    crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<body ng-controller="kickeria">
+    <nav class="navbar navbar-default">
+        <div class="container-fluid">
+            <div class="navbar-header" style="width:400px">
+                <a class="navbar-brand" href="#">
+                    <img src="kickeria_small.png" alt="Kickeria" />
+                </a>
+                <h1>Risklab Kickeria </h1>
+
+            </div>
+            <div class="collapse navbar-collapse">
+                <ul class="nav navbar-nav mynav">
+                    <li class="dropdown">
+                        <select class="form-control" name="mySelect" id="mySelect" ng-options="option.Description for option in options"
+                        ng-model="selectedTournament" ng-change="tournamentChange()"></select>
+                    </li>
+
+                </ul>
+            </div>
+    </nav>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-xs-2">
+                <section>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th><abbr title="Inactive players won't be drawn in new matchups">Is Active?</abbr></th>
+                            </tr>
+                        </thead>
+                        <tr ng-repeat="player in activeplayers">
+                            <td>{{player.Name}}</td>
+                            <td>
+                                <input type="checkbox" ng-model="player.IsActive" ng-change="changeActive(player)"> </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input type="text" class="form-text" style="width:100px" placeholder="Player Name" ng-model="newplayer" />
+                            </td>
+                            <td>
+                                <button type="button" ng-click="addplayer()" value="Add" class="btn btn-default">
+                                    <span class="glyphicon glyphicon-plus"></span>
+                                </button>
+                            </td>
+                        </tr>
+                    </table>
+                    <div>
+                        <div><label> <input type="checkbox" ng-model="fairMatch">Use Matchmaking</label></div>
+                        <div><label><input type="checkbox" ng-model="showPredictions">Show predictions</label></div>
+                        <div><label><input type="checkbox" ng-model="showQuality">Show game quality indicator</label></div>
+                        <div><label><input type="checkbox" ng-model="fixedPositions">Fixed positions</label></div>
+                        <div><label><input type="checkbox" ng-model="showExperimentalStats">Experimental Stats</label></div>
+                        <div><label><input type="checkbox" ng-model="showOdds">Show Betting Odds</label></div>
+                    </div>
+                </section>
+            </div>
+            <div class="col-xs-6">
+                <section>
+                    <div ng-if="!isDisabled" class="well well-sm" ng-click="newmatch()">
+                        <strong>Shuffle new matchup</strong>
+                    </div>
+                    <div ng-if="isDisabled" class="alert alert-info ">
+                        <strong>The tournament has concluded. No more games can be added nor edited.</strong>
+                    </div>
+                    <div ng-repeat="game in games | orderBy:'$index':true " class="well well-sm animate-repeat matchup">
+                        <div class="matchup-side side-left">
+                            <div class="matchup-players">
+                                <div class="matchup-player player-top">{{ game.Player1 }}</div>
+                                <div class="matchup-player player-bottom">{{ game.Player2 }}</div>
+                            </div>
+                            <ul ng-show="showQuality" class="extra-info alert " ng-class="game.GameQuality > 0.6 ? 'alert-success' : game.GameQuality > 0.4 ? 'alert-warning' : 'alert-danger'">
+                                <li class="game-quality">{{ game.GameQuality * 100 | number:0}}</li>
+                            </ul>
+                        </div>
+                        <div class="matchup-side side-right">
+                            <div class="matchup-players">
+                                <div class="matchup-player player-top">{{ game.Player3 }}</div>
+                                <div class="matchup-player player-bottom">{{ game.Player4 }}</div>
+                            </div>
+                        </div>
+                        <ul class="score">
+                            <li>
+                                <input ng-readonly="isDisabled" class="form-control" type="text" ng-model="game.ScoreTeam1" ng-change="scoreChanged(game)"
+                                />
+                            </li>
+                            <li>
+                                <input ng-readonly="isDisabled" class="form-control" type="text" ng-model="game.ScoreTeam2" ng-change="scoreChanged(game)"
+                                />
+                            </li>
+                        </ul>
+                        <ul ng-if="showPredictions" class="win">
+                            <li class="win-percentage">{{ (game.ProbTeam1) * 100 | number:0}}%</li>
+                            <li class="win-percentage">{{ (1-game.ProbTeam1) * 100 | number:0}}%</li>
+                        </ul>
+                        <ul ng-if="showOdds" class="odds">
+                            <li class="win-percentage">{{ (game.Odds1)  | number:2}}</li>
+                            <li class="win-percentage">{{ (game.Odds2)  | number:2}}</li>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+            <div class="col-xs-4">
+                <div>
+                    <h2>Leaderboard</h2>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th><a href="#" ng-click="orderByField='Name'; reverseSort = !reverseSort">Player</a></th>
+                                <th><a href="#" ng-click="orderByField='Highscore.NumWins'; reverseSort = !reverseSort">#Wins</a></th>
+                                <th><a href="#" ng-click="orderByField='Highscore.NumGames'; reverseSort = !reverseSort">#Games</a></th>
+                                <th><a href="#" ng-click="orderByField='Highscore.NumWins/Highscore.NumGames'; reverseSort = !reverseSort">%</a></th>
+                                <th><a href="#" ng-click="orderByField='Highscore.NumZeros'; reverseSort = !reverseSort">#Zeros</a></th>
+                                <th><a href="#" ng-click="orderByField='Highscore.NumEarned'; reverseSort = !reverseSort">Money made</a></th>
+                                <th><a href="#" ng-click="orderByField='Highscore.Trueskill.Rank'; reverseSort = !reverseSort"><abbr title="Microsoft TrueSkill TM">Trueskill Rank (1%)</abbr></a></th>
+                                <th ng-show="showExperimentalStats"><a href="#" ng-click="orderByField='Highscore.Trueskill.Mu'; reverseSort = !reverseSort">Trueskill</a></th>
+                                <th ng-show="showExperimentalStats"><a href="#" ng-click="orderByField='Highscore.AttackTrueskill.Mu'; reverseSort = !reverseSort">Attack Trueskill</a></th>
+                                <th ng-show="showExperimentalStats"><a href="#" ng-click="orderByField='Highscore.DefenseTrueskill.Mu'; reverseSort = !reverseSort">Defense Trueskill</a></th>
+                            </tr>
+                        </thead>
+                        <tfoot>
+                            <tr>
+                                <td></td>
+                                <td></td>
+                                <td>{{highScore.totalGames}}</td>
+                                <td></td>
+                                <td>{{highScore.totalZeros}}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                        <tbody>
+                            <tr ng-repeat="hs in highScore|orderBy:orderByField:reverseSort ">
+                                <td>
+                                    {{hs.Name}}
+                                </td>
+                                <td>
+                                    {{hs.Highscore.NumWins}}
+                                </td>
+                                <td>
+                                    {{hs.Highscore.NumGames}}
+                                </td>
+                                <td>
+                                    {{100*hs.Highscore.NumWins/hs.Highscore.NumGames | number:0}}%
+                                </td>
+                                <td>
+                                    {{hs.Highscore.NumZeros}}
+                                </td>
+                                <td>
+                                    {{hs.Highscore.NumEarned}}
+                                </td>
+                                 <td>
+                                    {{hs.Highscore.Trueskill.Rank | number:1}} 
+                                </td>
+                                <td ng-show="showExperimentalStats">
+                                    {{hs.Highscore.Trueskill.Mu | number:1}} <small><small><small>(&plusmn;{{hs.Highscore.Trueskill.Sigma | number:1}})</small></small></small>
+                                </td>
+                                <td ng-show="showExperimentalStats">
+                                    {{hs.Highscore.AttackTrueskill.Mu | number:1}} <small><small><small>(&plusmn;{{hs.Highscore.AttackTrueskill.Sigma | number:1}})</small></small></small>
+                                </td>
+                                  <td ng-show="showExperimentalStats">
+                                    {{hs.Highscore.DefenseTrueskill.Mu | number:1}} <small><small><small>(&plusmn;{{hs.Highscore.DefenseTrueskill.Sigma | number:1}})</small></small></small>
+                                </td ng-if="showExperimentalStats">
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <h3>Friends and enemies</h3>
+                    <div class="myBoard">
+                        <table>
+                            <tr ng-repeat="frow in friends track by $index">
+                                <td ng-repeat="name in frow track by $index">
+                                    <div>
+                                        <span class="friend" ng-if="$index > $parent.$index">{{name.Friends}}</span>
+                                        <span class="enemy" ng-if="$index < $parent.$index">{{name.Enemies}}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
